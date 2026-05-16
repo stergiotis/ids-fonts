@@ -1,0 +1,111 @@
+name: build
+
+# Triggers:
+#   - push to main: smoke-test the build, don't publish.
+#   - push of a tag matching v*: smoke-test + create a release with TTFs.
+#   - manual workflow_dispatch: ad-hoc rebuild for testing.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      iosevka_version_override:
+        description: "Override IOSEVKA_VERSION (e.g. v34.5.0). Empty = use IOSEVKA_VERSION file."
+        required: false
+        default: ''
+
+permissions:
+  contents: write   # required for release creation on tag push
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout ids-fonts
+        uses: actions/checkout@v4
+
+      - name: Resolve Iosevka version
+        id: vers
+        run: |
+          if [ -n "${{ inputs.iosevka_version_override }}" ]; then
+            VER="${{ inputs.iosevka_version_override }}"
+          else
+            VER="$(cat IOSEVKA_VERSION | tr -d '[:space:]')"
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Building against Iosevka $VER"
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            ttfautohint \
+            p7zip-full \
+            python3 \
+            git \
+            ca-certificates
+          ttfautohint --version
+          python3 --version
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Clone Iosevka source at pinned version
+        run: |
+          git clone --depth 1 --branch "${{ steps.vers.outputs.version }}" \
+            https://github.com/be5invis/Iosevka.git iosevka-source
+          (cd iosevka-source && git log -1 --pretty=oneline)
+
+      - name: Stage IDS build plan
+        run: cp private-build-plans.toml iosevka-source/private-build-plans.toml
+
+      - name: Install Iosevka build deps
+        working-directory: iosevka-source
+        run: npm install --no-audit --no-fund
+
+      - name: Build IDSMono
+        working-directory: iosevka-source
+        run: |
+          npm run build -- ttf::IDSMono
+          ls -la dist/IDSMono/TTF/
+
+      - name: Stage artefacts + compute SHA256SUMS
+        run: |
+          mkdir -p out
+          cp iosevka-source/dist/IDSMono/TTF/*.ttf out/
+          (cd out && sha256sum *.ttf | tee SHA256SUMS)
+          # Bundle the build plan + Iosevka pin alongside the binaries
+          # so consumers can audit exactly what produced these bytes.
+          cp private-build-plans.toml out/
+          cp IOSEVKA_VERSION out/
+          # LICENSE bundled per OFL §2 (must travel with the fonts).
+          cp LICENSE out/
+          ls -la out/
+
+      - name: Upload artefacts (every build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ids-fonts-idsmono-${{ steps.vers.outputs.version }}-${{ github.sha }}
+          path: out/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Create release (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            --title "IDS Mono $TAG" \
+            --notes "Built from Iosevka ${{ steps.vers.outputs.version }}. SHA256SUMS attached." \
+            out/*.ttf \
+            out/SHA256SUMS \
+            out/LICENSE \
+            out/private-build-plans.toml \
+            out/IOSEVKA_VERSION

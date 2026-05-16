@@ -1,0 +1,14 @@
+# Iosevka source clone — fetched fresh on every build, never committed.
+/iosevka-source/
+
+# Build output staging.
+/out/
+/dist/
+
+# Node + npm artefacts (only present during local builds).
+/node_modules/
+/package-lock.json
+
+# Editor + OS scratch.
+*.swp
+.DS_Store

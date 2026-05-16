@@ -1,0 +1,34 @@
+# Icon manifest for the IDS Mono Nerd Font variant — PHASE 2.
+#
+# Status: PLACEHOLDER. Phase 1 of this repo ships only the bare IDS Mono
+# build; Phase 2 will subset Nerd Fonts to the codepoints declared
+# here and patch the subset into IDS Mono to produce an `IDSMono
+# Nerd Font` variant.
+#
+# Format (Phase 2):
+#   [[icon]]
+#   codepoint = "U+F013"      # canonical Nerd Fonts codepoint
+#   name      = "gear"        # canonical Nerd Fonts name
+#   meaning   = "settings"    # semantic role in IDS apps
+#   source    = "fontawesome" # upstream icon family for license accounting
+#
+# Adding an icon is a deliberate act: a PR appends a row, CI re-patches
+# the font, the SHA256SUMS changes, downstream consumers re-pin. This
+# keeps the icon vocabulary explicit and the binary small.
+#
+# Starter set (proposed, not yet consumed):
+#   gear           — settings
+#   info-circle    — informational badge
+#   triangle-warning — warning badge
+#   xmark-circle   — error / dismiss
+#   check-circle   — success / confirm
+#   file           — generic document
+#   folder         — generic directory
+#   chevron-{up,down,left,right} — disclosure / navigation
+#   plus, minus, xmark — common action verbs
+#   search         — search affordance
+#
+# Until Phase 2 lands, downstream consumers reach for the standalone
+# SymbolsNerdFontMono-Regular.ttf separately.
+
+# (intentionally empty in Phase 1)
