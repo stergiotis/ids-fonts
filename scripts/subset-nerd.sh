@@ -14,7 +14,13 @@
 #   SymbolsNerdFontMono-Regular.ttf  — upstream input (audit trail, ~3 MB)
 #   NFBrand.ttf                      — subsetted output (~150 KB)
 #
-# Dependencies: curl, python3, python3-fonttools (pyftsubset).
+# Dependencies: curl, python3 (≥3.11 for tomllib), python3-fonttools.
+#
+# We invoke fontTools as `python3 -m fontTools.subset` rather than the
+# `pyftsubset` CLI shim. On Debian/Ubuntu the shim lives in a separate
+# `fonttools` apt package distinct from `python3-fonttools` (only the
+# latter is needed for `python3 -m fontTools.subset`); the module form
+# also avoids PATH lookups.
 
 set -euo pipefail
 here=$(dirname "$(readlink -f "$BASH_SOURCE")")
@@ -53,7 +59,7 @@ PY
 )"
 
 echo "==> subsetting with --unicodes=$RANGES"
-pyftsubset "$INPUT" \
+python3 -m fontTools.subset "$INPUT" \
     --unicodes="$RANGES" \
     --output-file="$OUT_DIR/NFBrand.ttf" \
     --no-hinting \

@@ -58,7 +58,7 @@ jobs:
             ca-certificates
           ttfautohint --version
           python3 --version
-          pyftsubset --help >/dev/null && echo "pyftsubset: available"
+          python3 -m fontTools.subset --help >/dev/null && echo "fontTools.subset: available"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
