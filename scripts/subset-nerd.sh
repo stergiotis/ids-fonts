@@ -70,8 +70,12 @@ echo "==> fetching Nerd Fonts LICENSE at $NERDFONTS_VERSION"
 # Upstream multi-source license attribution — must travel with the
 # redistributed subset bytes (NFBrand is a strict subset, no glyph
 # alterations, so the upstream license terms apply unchanged).
-curl -fsSL -o "$OUT_DIR/NFBrand.LICENSE" \
-    "https://raw.githubusercontent.com/ryanoasis/nerd-fonts/$NERDFONTS_VERSION/LICENSE"
+# Defensive LF normalisation mirrors fetch-phosphor.sh — current
+# upstream serves LF, but normalising defends against a future
+# CRLF shift in the registry / mirror chain.
+curl -fsSL "https://raw.githubusercontent.com/ryanoasis/nerd-fonts/$NERDFONTS_VERSION/LICENSE" \
+    | tr -d '\r' \
+    > "$OUT_DIR/NFBrand.LICENSE"
 
 echo "==> NFBrand artefacts produced"
 ls -la "$OUT_DIR/NFBrand.ttf" "$OUT_DIR/NFBrand.LICENSE"

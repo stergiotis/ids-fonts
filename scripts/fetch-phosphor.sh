@@ -39,8 +39,14 @@ curl -fsSL -o "$OUT_DIR/Phosphor.ttf" \
 
 echo "==> fetching Phosphor LICENSE at @phosphor-icons/web@$PHOSPHOR_VERSION"
 # Upstream MIT — must travel with the redistributed .ttf bytes.
-curl -fsSL -o "$OUT_DIR/Phosphor.LICENSE" \
-    "https://unpkg.com/@phosphor-icons/web@$PHOSPHOR_VERSION/LICENSE"
+# Defensive LF normalisation: unpkg serves the LICENSE from @phosphor-
+# icons/web@2.1.1 with CRLF terminators (npm packaging artefact),
+# whereas the GitHub source is LF. Normalising here means downstream
+# consumers get a single canonical byte sequence regardless of which
+# upstream channel a future bump pulls from.
+curl -fsSL "https://unpkg.com/@phosphor-icons/web@$PHOSPHOR_VERSION/LICENSE" \
+    | tr -d '\r' \
+    > "$OUT_DIR/Phosphor.LICENSE"
 
 echo "==> fetching icons catalogue at @phosphor-icons/core@$PHOSPHOR_VERSION"
 curl -fsSL -o "$OUT_DIR/phosphor-icons.mjs" \
