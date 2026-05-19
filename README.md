@@ -104,18 +104,31 @@ single `SHA256SUMS` manifest covering them all. Pin a specific release
 from your consumer project — never `latest`:
 
 ```text
+# Fonts
 https://github.com/stergiotis/ids-fonts/releases/download/<tag>/IDSMono-Regular.ttf
 https://github.com/stergiotis/ids-fonts/releases/download/<tag>/Phosphor.ttf
 https://github.com/stergiotis/ids-fonts/releases/download/<tag>/NFBrand.ttf
+
+# Phosphor catalogue
 https://github.com/stergiotis/ids-fonts/releases/download/<tag>/phosphor-icons.json
+https://github.com/stergiotis/ids-fonts/releases/download/<tag>/phosphor-icons.mjs
+
+# Licenses — each font is distributed under its own upstream license:
+https://github.com/stergiotis/ids-fonts/releases/download/<tag>/LICENSE             # umbrella OFL (IDS Mono / Iosevka)
+https://github.com/stergiotis/ids-fonts/releases/download/<tag>/Phosphor.LICENSE    # MIT (@phosphor-icons/web)
+https://github.com/stergiotis/ids-fonts/releases/download/<tag>/NFBrand.LICENSE     # multi-source (ryanoasis/nerd-fonts)
+
+# Integrity
 https://github.com/stergiotis/ids-fonts/releases/download/<tag>/SHA256SUMS
 ```
 
 Sample consumer-side download (mirror the SHA before trusting):
 
 ```bash
-TAG=v0.2.0
-for f in IDSMono-Regular.ttf Phosphor.ttf NFBrand.ttf phosphor-icons.json; do
+TAG=v0.2.3
+for f in IDSMono-Regular.ttf Phosphor.ttf NFBrand.ttf \
+         phosphor-icons.json phosphor-icons.mjs \
+         LICENSE Phosphor.LICENSE NFBrand.LICENSE; do
   curl -fLO "https://github.com/stergiotis/ids-fonts/releases/download/$TAG/$f"
 done
 curl -fL "https://github.com/stergiotis/ids-fonts/releases/download/$TAG/SHA256SUMS" | sha256sum -c -

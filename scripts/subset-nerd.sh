@@ -13,6 +13,7 @@
 # Outputs (in ./out/):
 #   SymbolsNerdFontMono-Regular.ttf  — upstream input (audit trail, ~3 MB)
 #   NFBrand.ttf                      — subsetted output (~150 KB)
+#   NFBrand.LICENSE                  — upstream Nerd Fonts LICENSE (must travel)
 #
 # Dependencies: curl, python3 (≥3.11 for tomllib), python3-fonttools.
 #
@@ -65,5 +66,12 @@ python3 -m fontTools.subset "$INPUT" \
     --no-hinting \
     --desubroutinize
 
-echo "==> NFBrand.ttf produced"
-ls -la "$OUT_DIR/NFBrand.ttf"
+echo "==> fetching Nerd Fonts LICENSE at $NERDFONTS_VERSION"
+# Upstream multi-source license attribution — must travel with the
+# redistributed subset bytes (NFBrand is a strict subset, no glyph
+# alterations, so the upstream license terms apply unchanged).
+curl -fsSL -o "$OUT_DIR/NFBrand.LICENSE" \
+    "https://raw.githubusercontent.com/ryanoasis/nerd-fonts/$NERDFONTS_VERSION/LICENSE"
+
+echo "==> NFBrand artefacts produced"
+ls -la "$OUT_DIR/NFBrand.ttf" "$OUT_DIR/NFBrand.LICENSE"

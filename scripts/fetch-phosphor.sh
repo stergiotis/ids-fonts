@@ -12,6 +12,7 @@
 #
 # Outputs (in ./out/):
 #   Phosphor.ttf            — the regular weight, ~600 KB
+#   Phosphor.LICENSE        — upstream MIT license (must travel with bytes)
 #   phosphor-icons.mjs      — upstream catalogue (audit trail)
 #   phosphor-icons.json     — flattened catalogue (Go generator input)
 #
@@ -36,6 +37,11 @@ echo "==> fetching Phosphor.ttf at @phosphor-icons/web@$PHOSPHOR_VERSION"
 curl -fsSL -o "$OUT_DIR/Phosphor.ttf" \
     "https://unpkg.com/@phosphor-icons/web@$PHOSPHOR_VERSION/src/regular/Phosphor.ttf"
 
+echo "==> fetching Phosphor LICENSE at @phosphor-icons/web@$PHOSPHOR_VERSION"
+# Upstream MIT — must travel with the redistributed .ttf bytes.
+curl -fsSL -o "$OUT_DIR/Phosphor.LICENSE" \
+    "https://unpkg.com/@phosphor-icons/web@$PHOSPHOR_VERSION/LICENSE"
+
 echo "==> fetching icons catalogue at @phosphor-icons/core@$PHOSPHOR_VERSION"
 curl -fsSL -o "$OUT_DIR/phosphor-icons.mjs" \
     "https://unpkg.com/@phosphor-icons/core@$PHOSPHOR_VERSION/dist/index.mjs"
@@ -44,4 +50,5 @@ echo "==> converting phosphor-icons.mjs → phosphor-icons.json"
 python3 "$here/ts-to-json.py" "$OUT_DIR/phosphor-icons.mjs" "$OUT_DIR/phosphor-icons.json"
 
 echo "==> Phosphor artefacts staged"
-ls -la "$OUT_DIR/Phosphor.ttf" "$OUT_DIR/phosphor-icons.mjs" "$OUT_DIR/phosphor-icons.json"
+ls -la "$OUT_DIR/Phosphor.ttf" "$OUT_DIR/Phosphor.LICENSE" \
+       "$OUT_DIR/phosphor-icons.mjs" "$OUT_DIR/phosphor-icons.json"
