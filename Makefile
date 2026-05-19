@@ -11,15 +11,13 @@
 
 IOSEVKA_VERSION  := $(shell cat IOSEVKA_VERSION | tr -d '[:space:]')
 PHOSPHOR_VERSION := $(shell cat PHOSPHOR_VERSION | tr -d '[:space:]')
-NERDFONTS_VERSION := $(shell cat NERDFONTS_VERSION | tr -d '[:space:]')
 
-.PHONY: all idsmono phosphor nf-brand build sums clean print-versions help
+.PHONY: all idsmono phosphor build sums clean print-versions help
 
 help:
-	@echo "make all       — build everything (idsmono + phosphor + nf-brand)"
+	@echo "make all       — build everything (idsmono + phosphor)"
 	@echo "make idsmono   — build IDS Mono from Iosevka source"
 	@echo "make phosphor  — fetch Phosphor.ttf + icons.ts; emit phosphor-icons.json"
-	@echo "make nf-brand  — subset Nerd Fonts to NFBrand.ttf (per icons.toml)"
 	@echo "make build     — alias for idsmono (back-compat)"
 	@echo "make sums      — recompute out/SHA256SUMS over all staged artefacts"
 	@echo "make clean     — remove iosevka-source/ and out/"
@@ -28,9 +26,8 @@ help:
 print-versions:
 	@echo "IOSEVKA_VERSION   = $(IOSEVKA_VERSION)"
 	@echo "PHOSPHOR_VERSION  = $(PHOSPHOR_VERSION)"
-	@echo "NERDFONTS_VERSION = $(NERDFONTS_VERSION)"
 
-all: idsmono phosphor nf-brand sums
+all: idsmono phosphor sums
 
 # IDS Mono — Phase 1. Bare custom Iosevka build.
 idsmono: out
@@ -53,16 +50,10 @@ idsmono: out
 	cp IOSEVKA_VERSION out/
 	@echo "==> idsmono done"
 
-# Phosphor — Phase 2a. Fetch upstream font + catalogue; emit JSON.
+# Phosphor — Phase 2. Fetch upstream font + catalogue; emit JSON.
 phosphor: out
 	OUT_DIR="$$(pwd)/out" bash scripts/fetch-phosphor.sh
 	cp PHOSPHOR_VERSION out/
-
-# NFBrand — Phase 2b. Subset Nerd Fonts to icons.toml manifest.
-nf-brand: out
-	OUT_DIR="$$(pwd)/out" bash scripts/subset-nerd.sh
-	cp NERDFONTS_VERSION out/
-	cp icons.toml out/
 
 # Back-compat alias for the original `make build` (IDS Mono only).
 build: idsmono sums
