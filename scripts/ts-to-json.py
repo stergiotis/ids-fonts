@@ -1,18 +1,27 @@
 #!/usr/bin/env python3
-"""Convert @phosphor-icons/core src/icons.ts to phosphor-icons.json.
+"""Convert the @phosphor-icons/core icons catalogue to phosphor-icons.json.
 
 Step in the Phosphor build pipeline that emits a flat JSON catalogue
 the downstream Go generator (pebble2impl/.../iconsgen) can consume
-without parsing TypeScript. See ADR-0044 §SD3 for the design rationale.
+without parsing TypeScript or JavaScript. See ADR-0044 §SD3 for the
+design rationale.
+
+Accepts either:
+  - The TypeScript source `src/icons.ts` (GitHub-only — npm publishes
+    only `dist/`).
+  - The compiled ESM bundle `dist/index.mjs` (published to npm; the
+    durable source for our pipeline). Same per-entry field layout as
+    the TS source; only the array opener and the enum-reference names
+    differ, neither of which this parser inspects.
 
 Only the four fields the Go generator needs are kept (name, pascal_name,
 codepoint, optional alias). All other metadata (categories, tags,
 figma_category, version) is intentionally dropped — keeping it would
-force this script to resolve TypeScript enum references, and the Go
-side does not consume those fields.
+force this script to resolve TypeScript / JavaScript enum references,
+and the Go side does not consume those fields.
 
 Usage:
-    ts-to-json.py <icons.ts> <icons.json>
+    ts-to-json.py <icons.ts|index.mjs> <icons.json>
 
 Parser model: line-oriented. Each entry's four fields each appear on
 their own line; alias is single-line in every release verified so far.
@@ -36,25 +45,33 @@ def main() -> int:
 
     name_re = re.compile(r'name:\s*"([^"]+)"')
     pascal_re = re.compile(r'pascal_name:\s*"([^"]+)"')
-    codepoint_re = re.compile(r"codepoint:\s*(\d+)")
+    # Accept both integer literals (`58000`) and the scientific-notation
+    # form esbuild emits for round numbers in the compiled .mjs
+    # (`58e3`). `int(float(...))` handles either.
+    codepoint_re = re.compile(r"codepoint:\s*(\d+(?:e\d+)?)")
     alias_re = re.compile(
         r'alias:\s*\{\s*name:\s*"([^"]+)",\s*pascal_name:\s*"([^"]+)"\s*\}'
     )
 
     entries: list[dict] = []
     current: dict | None = None
-    in_array = False
-    depth = 0  # brace depth, relative to the outer array entry
+    depth = 0  # brace depth (line-level), relative to the outer file scope
+
+    # No explicit array-opener gating — the compiled .mjs minifies the
+    # array's internal variable name (the export footer maps it back to
+    # `icons`), so matching the opener line is fragile. Instead we
+    # process every line and rely on the depth tracker plus the per-
+    # entry required-fields check: entries that don't carry all three
+    # of name / pascal_name / codepoint are silently discarded, which
+    # catches the empty `{}` enum stubs that appear in the compiled
+    # .mjs's first line.
 
     for line in src.splitlines():
         s = line.strip()
 
-        if not in_array:
-            if "export const icons" in s:
-                in_array = True
-            continue
-
-        # Track outer-object boundaries by brace depth.
+        # Net brace-depth change on this line. A single line containing
+        # both `{` and `}` (e.g. an inline `alias: { ... }`) nets to 0
+        # and does not transition depth.
         opens = s.count("{") - s.count("}")
         if depth == 0 and opens > 0:
             current = {}
@@ -68,7 +85,7 @@ def main() -> int:
             if (m := alias_re.search(s)):
                 current["alias"] = {"name": m.group(1), "pascal_name": m.group(2)}
             if (m := codepoint_re.search(s)):
-                current["codepoint"] = int(m.group(1))
+                current["codepoint"] = int(float(m.group(1)))
 
         if depth == 0 and current is not None:
             if (
@@ -77,11 +94,10 @@ def main() -> int:
                 and "codepoint" in current
             ):
                 entries.append(current)
-            else:
-                print(
-                    f"warning: skipping incomplete entry: {current}",
-                    file=sys.stderr,
-                )
+            # Silently discard entries missing required fields — these
+            # are non-icon-entry top-level `{}` blocks (most commonly
+            # empty enum-default stubs at the start of the compiled
+            # .mjs).
             current = None
 
     with open(dst_path, "w", encoding="utf-8") as f:

@@ -12,8 +12,15 @@
 #
 # Outputs (in ./out/):
 #   Phosphor.ttf            — the regular weight, ~600 KB
-#   phosphor-icons.ts       — upstream catalogue (audit trail)
+#   phosphor-icons.mjs      — upstream catalogue (audit trail)
 #   phosphor-icons.json     — flattened catalogue (Go generator input)
+#
+# We pull the catalogue from `dist/index.mjs` (the compiled ESM bundle)
+# rather than `src/icons.ts` because @phosphor-icons/core publishes
+# only the `dist/` directory to npm — `src/` lives on GitHub. The .mjs
+# preserves the same per-entry field layout as the TS source (only the
+# array opener differs — `var icons = [` vs `export const icons =
+# (<const>[`); ts-to-json.py handles both.
 #
 # Dependencies: curl, python3.
 
@@ -29,12 +36,12 @@ echo "==> fetching Phosphor.ttf at @phosphor-icons/web@$PHOSPHOR_VERSION"
 curl -fsSL -o "$OUT_DIR/Phosphor.ttf" \
     "https://unpkg.com/@phosphor-icons/web@$PHOSPHOR_VERSION/src/regular/Phosphor.ttf"
 
-echo "==> fetching icons.ts at @phosphor-icons/core@$PHOSPHOR_VERSION"
-curl -fsSL -o "$OUT_DIR/phosphor-icons.ts" \
-    "https://unpkg.com/@phosphor-icons/core@$PHOSPHOR_VERSION/src/icons.ts"
+echo "==> fetching icons catalogue at @phosphor-icons/core@$PHOSPHOR_VERSION"
+curl -fsSL -o "$OUT_DIR/phosphor-icons.mjs" \
+    "https://unpkg.com/@phosphor-icons/core@$PHOSPHOR_VERSION/dist/index.mjs"
 
-echo "==> converting icons.ts → phosphor-icons.json"
-python3 "$here/ts-to-json.py" "$OUT_DIR/phosphor-icons.ts" "$OUT_DIR/phosphor-icons.json"
+echo "==> converting phosphor-icons.mjs → phosphor-icons.json"
+python3 "$here/ts-to-json.py" "$OUT_DIR/phosphor-icons.mjs" "$OUT_DIR/phosphor-icons.json"
 
 echo "==> Phosphor artefacts staged"
-ls -la "$OUT_DIR/Phosphor.ttf" "$OUT_DIR/phosphor-icons.ts" "$OUT_DIR/phosphor-icons.json"
+ls -la "$OUT_DIR/Phosphor.ttf" "$OUT_DIR/phosphor-icons.mjs" "$OUT_DIR/phosphor-icons.json"
