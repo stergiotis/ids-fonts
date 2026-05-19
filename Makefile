@@ -1,28 +1,39 @@
-# Local build orchestration for IDS Mono.
+# Local build orchestration for the IDS font family.
 #
 # Mirrors the GitHub Actions workflow at .github/workflows/build.yml.
-# Contributors should rarely need this — pull a tagged release's artefacts
-# from GitHub instead. Run locally only when iterating on
-# private-build-plans.toml or when bumping IOSEVKA_VERSION before
-# pushing the tag.
+# Contributors should rarely need this — pull a tagged release's
+# artefacts from GitHub instead. Run locally only when iterating on a
+# version pin or build plan before pushing the tag.
 #
-# Requires (Debian/Ubuntu): apt install ttfautohint p7zip-full python3 git
-# Plus Node.js 22+ on PATH (nvm install 22 / nodesource).
+# Requires (Debian/Ubuntu): apt install ttfautohint p7zip-full python3 \
+#                                       python3-fonttools curl git
+# Plus Node.js 22+ on PATH (for the IDS Mono Iosevka build only).
 
-IOSEVKA_VERSION := $(shell cat IOSEVKA_VERSION | tr -d '[:space:]')
+IOSEVKA_VERSION  := $(shell cat IOSEVKA_VERSION | tr -d '[:space:]')
+PHOSPHOR_VERSION := $(shell cat PHOSPHOR_VERSION | tr -d '[:space:]')
+NERDFONTS_VERSION := $(shell cat NERDFONTS_VERSION | tr -d '[:space:]')
 
-.PHONY: build sums clean print-version help
+.PHONY: all idsmono phosphor nf-brand build sums clean print-versions help
 
 help:
-	@echo "make build   — clone Iosevka $(IOSEVKA_VERSION), build IDSMono, stage to out/"
-	@echo "make sums    — recompute out/SHA256SUMS"
-	@echo "make clean   — remove iosevka-source/ and out/"
-	@echo "make print-version — print resolved IOSEVKA_VERSION"
+	@echo "make all       — build everything (idsmono + phosphor + nf-brand)"
+	@echo "make idsmono   — build IDS Mono from Iosevka source"
+	@echo "make phosphor  — fetch Phosphor.ttf + icons.ts; emit phosphor-icons.json"
+	@echo "make nf-brand  — subset Nerd Fonts to NFBrand.ttf (per icons.toml)"
+	@echo "make build     — alias for idsmono (back-compat)"
+	@echo "make sums      — recompute out/SHA256SUMS over all staged artefacts"
+	@echo "make clean     — remove iosevka-source/ and out/"
+	@echo "make print-versions — print all resolved upstream version pins"
 
-print-version:
-	@echo "IOSEVKA_VERSION = $(IOSEVKA_VERSION)"
+print-versions:
+	@echo "IOSEVKA_VERSION   = $(IOSEVKA_VERSION)"
+	@echo "PHOSPHOR_VERSION  = $(PHOSPHOR_VERSION)"
+	@echo "NERDFONTS_VERSION = $(NERDFONTS_VERSION)"
 
-build: out
+all: idsmono phosphor nf-brand sums
+
+# IDS Mono — Phase 1. Bare custom Iosevka build.
+idsmono: out
 	@if [ ! -d iosevka-source ]; then \
 		echo "==> cloning Iosevka $(IOSEVKA_VERSION)"; \
 		git clone --depth 1 --branch "$(IOSEVKA_VERSION)" \
@@ -40,13 +51,26 @@ build: out
 	cp iosevka-source/dist/IDSMono/TTF/*.ttf out/
 	cp private-build-plans.toml out/
 	cp IOSEVKA_VERSION out/
-	$(MAKE) sums
-	@echo "==> done. Artefacts in out/"
-	@ls -la out/
+	@echo "==> idsmono done"
+
+# Phosphor — Phase 2a. Fetch upstream font + catalogue; emit JSON.
+phosphor: out
+	OUT_DIR="$$(pwd)/out" bash scripts/fetch-phosphor.sh
+	cp PHOSPHOR_VERSION out/
+
+# NFBrand — Phase 2b. Subset Nerd Fonts to icons.toml manifest.
+nf-brand: out
+	OUT_DIR="$$(pwd)/out" bash scripts/subset-nerd.sh
+	cp NERDFONTS_VERSION out/
+	cp icons.toml out/
+
+# Back-compat alias for the original `make build` (IDS Mono only).
+build: idsmono sums
 
 sums: out
-	(cd out && sha256sum *.ttf > SHA256SUMS)
+	(cd out && sha256sum *.ttf *.json 2>/dev/null > SHA256SUMS || true)
 	@echo "==> SHA256SUMS regenerated"
+	@cat out/SHA256SUMS
 
 out:
 	mkdir -p out

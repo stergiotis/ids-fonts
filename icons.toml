@@ -1,34 +1,37 @@
-# Icon manifest for the IDS Mono Nerd Font variant — PHASE 2.
+# NFBrand subset manifest — what gets kept when subsetting Nerd Fonts
+# down to the brand-mark slot (Slot B) defined by ADR-0044.
 #
-# Status: PLACEHOLDER. Phase 1 of this repo ships only the bare IDS Mono
-# build; Phase 2 will subset Nerd Fonts to the codepoints declared
-# here and patch the subset into IDS Mono to produce an `IDSMono
-# Nerd Font` variant.
+# Source: SymbolsNerdFontMono-Regular.ttf at NERDFONTS_VERSION.
+# Output: NFBrand.ttf — ~150 KB, contains only the codepoints listed
+# here. Produced by scripts/subset-nerd.sh.
 #
-# Format (Phase 2):
-#   [[icon]]
-#   codepoint = "U+F013"      # canonical Nerd Fonts codepoint
-#   name      = "gear"        # canonical Nerd Fonts name
-#   meaning   = "settings"    # semantic role in IDS apps
-#   source    = "fontawesome" # upstream icon family for license accounting
+# Adding a range or codepoint is a deliberate act: a PR appends a row,
+# CI re-subsets the font, the SHA256SUMS changes, downstream consumers
+# re-pin. This keeps the brand-mark vocabulary explicit.
 #
-# Adding an icon is a deliberate act: a PR appends a row, CI re-patches
-# the font, the SHA256SUMS changes, downstream consumers re-pin. This
-# keeps the icon vocabulary explicit and the binary small.
-#
-# Starter set (proposed, not yet consumed):
-#   gear           — settings
-#   info-circle    — informational badge
-#   triangle-warning — warning badge
-#   xmark-circle   — error / dismiss
-#   check-circle   — success / confirm
-#   file           — generic document
-#   folder         — generic directory
-#   chevron-{up,down,left,right} — disclosure / navigation
-#   plus, minus, xmark — common action verbs
-#   search         — search affordance
-#
-# Until Phase 2 lands, downstream consumers reach for the standalone
-# SymbolsNerdFontMono-Regular.ttf separately.
+# Rationale per range — see ADR-0044 §SD2:
+#   - Devicons: programming-language and developer-tool brand marks
+#     (Go, Rust, Python, JavaScript, Docker, Linux, Git, Java, …).
+#   - Logos: additional brand marks not in Devicons.
+#   - Custom: Nerd Fonts' own one-offs, including the Go gopher mark.
+#   - One-off MaterialDesign codepoint (FontAwesome brand mark) is kept
+#     by explicit codepoint — used only in the demo carousel.
 
-# (intentionally empty in Phase 1)
+[[range]]
+description = "Devicons (programming language + tool brand marks)"
+start = "U+E700"
+end = "U+E7C5"
+
+[[range]]
+description = "Logos (additional brand marks not in Devicons)"
+start = "U+F300"
+end = "U+F372"
+
+[[range]]
+description = "Custom (Nerd Fonts one-offs, includes the Go gopher)"
+start = "U+E5FA"
+end = "U+E631"
+
+[[codepoint]]
+description = "Material Design Icons — FontAwesome brand mark (one-off)"
+value = "U+F003A"

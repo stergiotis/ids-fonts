@@ -27,16 +27,23 @@ jobs:
       - name: Checkout ids-fonts
         uses: actions/checkout@v4
 
-      - name: Resolve Iosevka version
+      - name: Resolve upstream versions
         id: vers
         run: |
           if [ -n "${{ inputs.iosevka_version_override }}" ]; then
-            VER="${{ inputs.iosevka_version_override }}"
+            IOSEVKA="${{ inputs.iosevka_version_override }}"
           else
-            VER="$(cat IOSEVKA_VERSION | tr -d '[:space:]')"
+            IOSEVKA="$(cat IOSEVKA_VERSION | tr -d '[:space:]')"
           fi
-          echo "version=$VER" >> "$GITHUB_OUTPUT"
-          echo "Building against Iosevka $VER"
+          PHOSPHOR="$(cat PHOSPHOR_VERSION | tr -d '[:space:]')"
+          NERDFONTS="$(cat NERDFONTS_VERSION | tr -d '[:space:]')"
+          echo "iosevka=$IOSEVKA"     >> "$GITHUB_OUTPUT"
+          echo "phosphor=$PHOSPHOR"   >> "$GITHUB_OUTPUT"
+          echo "nerdfonts=$NERDFONTS" >> "$GITHUB_OUTPUT"
+          echo "Building against:"
+          echo "  Iosevka    $IOSEVKA"
+          echo "  Phosphor   $PHOSPHOR (both @phosphor-icons/web and /core)"
+          echo "  Nerd Fonts $NERDFONTS"
 
       - name: Install system deps
         run: |
@@ -45,19 +52,24 @@ jobs:
             ttfautohint \
             p7zip-full \
             python3 \
+            python3-fonttools \
+            curl \
             git \
             ca-certificates
           ttfautohint --version
           python3 --version
+          pyftsubset --help >/dev/null && echo "pyftsubset: available"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
+      # --- IDS Mono (Phase 1) ---
+
       - name: Clone Iosevka source at pinned version
         run: |
-          git clone --depth 1 --branch "${{ steps.vers.outputs.version }}" \
+          git clone --depth 1 --branch "${{ steps.vers.outputs.iosevka }}" \
             https://github.com/be5invis/Iosevka.git iosevka-source
           (cd iosevka-source && git log -1 --pretty=oneline)
 
@@ -74,23 +86,42 @@ jobs:
           npm run build -- ttf::IDSMono
           ls -la dist/IDSMono/TTF/
 
-      - name: Stage artefacts + compute SHA256SUMS
+      - name: Stage IDS Mono artefacts
         run: |
           mkdir -p out
           cp iosevka-source/dist/IDSMono/TTF/*.ttf out/
-          (cd out && sha256sum *.ttf | tee SHA256SUMS)
-          # Bundle the build plan + Iosevka pin alongside the binaries
-          # so consumers can audit exactly what produced these bytes.
           cp private-build-plans.toml out/
           cp IOSEVKA_VERSION out/
+
+      # --- Phosphor (Phase 2a) ---
+
+      - name: Build Phosphor (fetch upstream + emit JSON)
+        run: |
+          OUT_DIR="$(pwd)/out" bash scripts/fetch-phosphor.sh
+          cp PHOSPHOR_VERSION out/
+
+      # --- NFBrand (Phase 2b) ---
+
+      - name: Build NFBrand (subset Nerd Fonts per icons.toml)
+        run: |
+          OUT_DIR="$(pwd)/out" bash scripts/subset-nerd.sh
+          cp NERDFONTS_VERSION out/
+          cp icons.toml out/
+
+      # --- Sums + release ---
+
+      - name: Compute SHA256SUMS over everything in out/
+        run: |
           # LICENSE bundled per OFL §2 (must travel with the fonts).
           cp LICENSE out/
+          (cd out && sha256sum *.ttf *.json | tee SHA256SUMS)
+          echo "==> final out/ contents:"
           ls -la out/
 
       - name: Upload artefacts (every build)
         uses: actions/upload-artifact@v4
         with:
-          name: ids-fonts-idsmono-${{ steps.vers.outputs.version }}-${{ github.sha }}
+          name: ids-fonts-${{ steps.vers.outputs.iosevka }}-ph${{ steps.vers.outputs.phosphor }}-nf${{ steps.vers.outputs.nerdfonts }}-${{ github.sha }}
           path: out/
           retention-days: 30
           if-no-files-found: error
@@ -102,10 +133,14 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           gh release create "$TAG" \
-            --title "IDS Mono $TAG" \
-            --notes "Built from Iosevka ${{ steps.vers.outputs.version }}. SHA256SUMS attached." \
+            --title "IDS Fonts $TAG" \
+            --notes "Built from: Iosevka ${{ steps.vers.outputs.iosevka }} / Phosphor ${{ steps.vers.outputs.phosphor }} / Nerd Fonts ${{ steps.vers.outputs.nerdfonts }}. SHA256SUMS attached. See ADR-0030 (IDS Mono) and ADR-0044 (Phosphor + NFBrand) in stergiotis/pebble2impl." \
             out/*.ttf \
+            out/*.json \
             out/SHA256SUMS \
             out/LICENSE \
             out/private-build-plans.toml \
-            out/IOSEVKA_VERSION
+            out/icons.toml \
+            out/IOSEVKA_VERSION \
+            out/PHOSPHOR_VERSION \
+            out/NERDFONTS_VERSION
